@@ -1,5 +1,7 @@
 # Laser-cut acrylic plates and PCB assembly.
 
+This directory contains dimensions (*.pdf) for three acrylic plates and cutout drawings (*.dxf) for manufacturing orders.
+
 ![structure](../assets/ch552_mediaPad_plate_assembly.png)
 
 
@@ -14,4 +16,4 @@ This diagram shows the assembly structure of a multi-layered setup including a P
 * Fastening Components
   * An 8mm M2 screw is used to secure the top of the assembly.
   * A 4mm M2 screw is used to secure the bottom of the assembly. 
-  * M2 Spacer (female-female, 9mm): A 9mm long M2 spacer is placed between 2 screws, from the bottom.
+  * M2 Spacer (male-female, 9mm): A 9mm long M2 spacer is placed between 2 screws, from the bottom.

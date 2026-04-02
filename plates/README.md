@@ -1,9 +1,12 @@
 # レーザーカット アクリルプレートと PCB アセンブリ
 
-![structure](../assets/ch552_mediaPad_plate_assembly.png)
+このディレクトリは、アクリル板を使った3種類のプレートの寸法(*.pdf)と、発注用のカットアウト図 (*.dxf) を含んでいます。
 
 
 このダイアグラムは、PCB とアクリルプレートを含むマルチレイヤー構造のアセンブリ構成を示しています。
+
+![structure](../assets/ch552_mediaPad_plate_assembly.png)
+
 
 * プレートと PCB
   * トッププレート (5mm): アセンブリの最上層は 5mm 厚の透明アクリルプレートです。
