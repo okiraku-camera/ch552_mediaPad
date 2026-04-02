@@ -1,0 +1,35 @@
+This project contains hardware and software components.
+Copyright (c) Takeshi Higasa, okiraku-camera.tokyo
+
+---
+
+Hardware License (CERN-OHL-P v2)
+Hardware design files in `pcb/` and `plates/` are licensed under the  
+CERN Open Hardware Licence Version 2 – Permissive.  
+Full text: https://ohwr.org/cern_ohl_p_v2.txt
+
+---
+
+Software License (MIT)
+Software components (firmware, scripts, tools) are licensed under the MIT License.  
+Full text: https://opensource.org/licenses/MIT
+
+---
+
+Third-Party Licenses
+
+**KiCAD**  
+PCB design files were created using KiCAD (version 8.0), an open-source EDA tool.  
+KiCAD is licensed under the AGPL-3.0 License:  
+https://www.kicad.org/
+https://gitlab.com/kicad/code/kicad/-/blob/master/LICENSE.txt
+
+**KiCad Footprints and Libraries**  
+This project uses footprints and symbols from KiCAD's official libraries, which are  
+licensed under the Creative Commons CC-BY-SA 4.0 License:  
+https://creativecommons.org/licenses/by-sa/4.0/
+
+The design files in `pcb/local/` include custom and adapted footprints from:  
+- kiswitch library: https://github.com/kiswitch/kiswitch (MIT License)
+
+All third-party components are properly attributed and comply with their respective licenses.
