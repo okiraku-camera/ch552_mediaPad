@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>MediaPad Config</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- WebHID 接続ボタン -->
+<button id="connectBtn">キーボードに接続</button>
+
+<!-- キーマップ操作ボタン -->
+  <div id="keymapControls">
+    <div class="control-row">
+      <button id="readKeymapBtn">キーマップを読み出す</button>
+      <button id="writeKeymapBtn">キーマップを書き込む</button>
+      <button id="readMacrosBtn">マクロを読み出す</button>
+      <button id="writeMacrosBtn">マクロを書き込む</button>
+    </div>
+    <div class="control-row">
+      <button id="openMacroEditorBtn">マクロを編集する</button>
+    </div>
+  </div>
+  <!-- キーボード表示領域 -->
+  <div id="numpadFrame">
+    <div id="numpad"></div>
+  </div>
+
+  <div id="auxBtns">
+    <button id="resetKeymapBtn">デフォルトにリセット</button>
+    <button id="startBootloaderBtn">ブートローダー開始</button>
+    <button id="readNvmBtn">NVMを読み出す</button>
+    <div class="aux-stack">
+      <button id="readMacroPtrsBtn">macro ptrs</button>
+    </div>
+  </div>
+
+  <!-- ログ表示 -->
+  <div id="logControls">
+    <button id="clearLogBtn">ログをクリア</button>
+  </div>
+  <div id="log"></div>
+
+  <!-- 1. 通常キー選択ダイアログ -->
+  <div id="keyDialog" class="dialog hidden">
+    <div class="dialog-content">
+      <div class="dialog-header"><h3>キーを選択</h3><button id="closeDialog">閉じる</button></div>
+      <div class="category"><h4>修飾キー</h4><div id="modifierKeys" class="key-list modifier-key-list"></div></div>
+      <div class="category"><h4>文字・数字・記号</h4><div id="charKeys" class="key-list"></div></div>
+      <div class="category"><h4>編集機能キー</h4><div id="editKeys" class="key-list"></div></div>
+      <div class="category"><h4>日本語拡張キー</h4><div id="jpExtKeys" class="key-list"></div></div>
+      <div class="category"><h4>メディアキー</h4><div id="specialKeyCodes" class="key-list"></div></div>
+      <div class="category"><h4>マウスシミュレーション</h4><div id="mouseSimKeys" class="key-list"></div></div>
+      <div class="category">
+        <h4>ファンクションキー</h4>
+        <div class="function-key-rows">
+          <div id="functionKeysF1ToF12" class="key-list function-key-row"></div>
+          <div id="functionKeysF13ToF24" class="key-list function-key-row"></div>
+        </div>
+      </div>
+      <div class="category"><h4>マクロコード</h4><div id="macroKeys" class="key-list"></div></div>
+    </div>
+  </div>
+
+  <!-- 2. スイッチ0専用：機能選択ダイアログ -->
+  <div id="specialKeyDialog" class="dialog hidden">
+    <div class="dialog-content">
+      <div class="dialog-header"><h3>スイッチ0の機能を設定</h3><button id="closeSpecialDialog">閉じる</button></div>
+      <div class="category">
+        <p>このキーの役割を選択してください：</p>
+        <div id="specialKeys" class="key-list">
+          <button id="setNumLock">NumLock (0x53)</button>
+          <button id="setFn">Fn (0xBC)</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. マクロ編集ダイアログ -->
+  <div id="macroEditorDialog" class="dialog hidden">
+    <div class="dialog-content macro-editor-content">
+      <div class="dialog-header"><h3>マクロコード編集</h3><button id="closeMacroEditorDialog">閉じる</button></div>
+
+      <div class="macro-editor-meta">
+        <div id="macroStorageStatus">使用中: 0 / 45 bytes</div>
+        <div id="macroRemainingBytes">追加可能な残りバイト数: 45</div>
+      </div>
+
+      <div class="category">
+        <h4>編集対象マクロ</h4>
+        <div id="macroSlots" class="key-list"></div>
+      </div>
+
+      <div class="category">
+        <h4>現在のマクロコード</h4>
+        <div id="macroSequence" class="macro-sequence"></div>
+        <div class="macro-edit-actions">
+          <button id="macroDeleteLastBtn">末尾を削除</button>
+          <button id="macroClearBtn">このマクロをクリア</button>
+        </div>
+      </div>
+
+      <div class="category">
+        <h4>追加するキー</h4>
+        <div id="macroBasicKeys" class="key-list macro-usage-list"></div>
+      </div>
+
+      <div class="category">
+        <h4>修飾キー</h4>
+        <div id="macroModifierKeys" class="key-list macro-usage-list"></div>
+      </div>
+
+      <div class="category">
+        <h4>日本語拡張キー</h4>
+        <div id="macroJpKeys" class="key-list macro-usage-list"></div>
+      </div>
+
+      <div class="category">
+        <h4>遅延</h4>
+        <div id="macroDelayKeys" class="key-list macro-usage-list"></div>
+      </div>
+    </div>
+  </div>
+
+<script src="ch552_mediaPad.js"></script>
+</body>
+</html>
