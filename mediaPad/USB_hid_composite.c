@@ -258,8 +258,8 @@ void send_modifiers(uint8_t mod, bool state) {
 	if (state) {
 		modifiers |= mod;
 	} else {
-		//modifiers &= ~mod;
-		modifiers = 0;
+		modifiers &= ~mod;
+	//	modifiers = 0;
 	}
 	rep[0] = modifiers;
 	USB_EP1_send(REPORT_ID_KBD, rep, sizeof(rep));

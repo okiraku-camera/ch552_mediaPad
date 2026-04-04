@@ -281,19 +281,18 @@
 #define FN_MS_WH_DOWN 0xcc
 
 
-#define IS_MACRO_KEYCODE(a) ((a) >= HID_M_0 && (a) <= HID_M_9) 
 #define MACRO_KEYCODE_BASE HID_M_0
-#define MACRO_KEY_COUNT 10
+#define MACRO_KEY_COUNT 6
+#define IS_MACRO_KEYCODE(a) ((a) >= HID_M_0 && (a) < (HID_M_0 + MACRO_KEY_COUNT))
 #define HID_M_0 0xd0
 #define HID_M_1 0xd1
 #define HID_M_2 0xd2
 #define HID_M_3 0xd3
 #define HID_M_4 0xd4
-#define HID_M_5 0xd5
-#define HID_M_6 0xd6
-#define HID_M_7 0xd7
-#define HID_M_8 0xd8 
-#define HID_M_9 0xd9
+
+#define HID_M_SEGSTART 0xd6	// start of segment. .
+#define HID_M_GOTO_SEG 0xd7 // return to segment position. this is used for loop processing in macro code.
+#define HID_M_SEG_BREAK 0xd8 // break a segment. this is used for conditional processing in macro code. currently it is not implemented, but may be used in future.
 
 #define IS_MACRO_DELAY_CODE(a) ((a) >= HID_M_DELAY100 && (a) <= HID_M_DELAY1000)
 #define HID_M_DELAY100 0xda	// delay 100ms

@@ -186,11 +186,14 @@ void key_event(uint8_t switch_num, uint8_t state) {
 				macro_delay_count = 0;
 			}
 		} else {
+			if (!state)
+				send_key(code, 0);
 			if (mod) {
 				send_modifiers(mod, state);
 				delay(20);
 			}
-			put_key_send_queue(code, state);
+			if (state)
+			send_key(code, 1);
 		}
 	}
 }
@@ -242,26 +245,47 @@ void enter_bootloader_mode() {
 // Modifier-off events at the end are sent regardless of the physical modifier state.
 void type_macro_strings() {
 	static uint8_t mod = 0;
+	static uint8_t seg_start_index = 0xff;	// this is used for tracking the start index of a segment when processing segment start and goto codes in macro. 0xff means no segment start encountered yet.	
 
 	if (macro_delay_count > 0) {
 		macro_delay_count--;
 		return ;
 	}
 
-	if (macro_ptrs[active_macro - 1] == 0) {	// no macro code.
+	if (macro_index == 0)
+		seg_start_index = 0xff;
+
+	uint16_t macro_base = macro_ptrs[active_macro - 1];
+	if (macro_base == 0) {	// no macro code.
 		active_macro = 0;
 		macro_delay_count = 0;
+		seg_start_index = 0xff;
 		return ;
 	}
-	uint8_t code = eeprom_read_byte(macro_ptrs[active_macro - 1] + macro_index);
+	uint8_t code = eeprom_read_byte(macro_base + macro_index);
 	if (code == 0) {	// end of macro code.
 		active_macro = 0;
 		macro_index = 0;
 		macro_delay_count = 0;
 		mod = 0;
+		seg_start_index = 0xff;
 		kbd_releaseAll();
 		return ;
 	}
+
+	if (code == HID_M_SEGSTART) {
+		if (seg_start_index == 0xff) {
+			seg_start_index = macro_index;
+		}
+		macro_index++;
+		return ;
+	}
+
+	if (code == HID_M_GOTO_SEG) {
+		macro_index = (seg_start_index == 0xff) ? 0 : seg_start_index;
+		return ;
+	}
+
 	if (IS_MACRO_DELAY_CODE(code)) {
 		switch (code) {
 		case HID_M_DELAY100:
@@ -280,14 +304,20 @@ void type_macro_strings() {
 		return ;
 	}
 
-	if (IS_MODIFIER_KEYCODE(code)) 
+	if (IS_MODIFIER_KEYCODE(code)) { 
 		mod |= (1 << ((code - HID_MODIFIERS) & 0x7));	// 0～7 for left mods.
-	if (mod)
-		modifiers = mod;
-	put_key_send_queue(code, 1);
-	if (!IS_MODIFIER_KEYCODE(code)) 
-		put_key_send_queue(code, 0);
-	macro_index++;
+		if ((mod & modifiers) & mod) {	// if some modifiers are already on, send the new modifiers state.	
+			send_modifiers(mod, false);
+		} else {
+			send_modifiers(mod, true);
+		}
+		delay(20);
+	} else {
+		send_key(code, 1);
+		delay(10);
+		send_key(code, 0);
+	}
+		macro_index++;
 	return ;
 }
 
@@ -352,7 +382,7 @@ void bg_color(uint8_t dir, bool extra) {
 void encoder_task() {
 	static int16_t last_counter = 0;
 	static unsigned long last_time = 0;
-	if (!should_run_periodic(&last_time, 5))
+	if (!should_run_periodic(&last_time, 4))
 		return;
 	int16_t delta = get_encoder_count() - last_counter;
 	if (delta == 0)
