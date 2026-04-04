@@ -46,6 +46,13 @@ Using WebHID in the browser, you can read and write the device keymap, encoder a
 
 - SW7 is treated as a fixed Fn key (`0xBC`) and cannot be changed in normal operation.
 - Macro area size is 85 bytes (managed as a contiguous macro sequence).
+- The per-macro-string spec limit is 50 bytes (validated on the UI side).
+- Macro editor "Delay/Repeat" section:
+  - Delay: `0xDC` (100ms), `0xDD` (500ms), `0xDE` (1sec)
+  - Repeat: `0xDA` (SEGSTART), `0xDB` (GOTO_SEG)
+- Firmware repeat behavior:
+  - `GOTO_SEG` returns to the first `SEGSTART` found in the current macro string.
+  - If no `SEGSTART` is found, execution returns to the start of the current macro string.
 - If unsaved macro edits exist, reading macros again prompts for confirmation.
 - On device disconnect, the app resets UI state and pending command state.
 

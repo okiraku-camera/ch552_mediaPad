@@ -32,7 +32,8 @@ const HID_CONFIG = {
   LAYER_COUNT: 2,
   KEYMAP_SIZE: 8,
   MACRO_SIZE: 85,  
-  MACRO_COUNT: 10,
+  MACRO_STRING_MAX_LENGTH: 50,
+  MACRO_COUNT: 6,
   NVM_SIZE: 128,
   COMMAND_TIMEOUT: 5000
 };
@@ -144,7 +145,9 @@ const shiftedCharLabelMap = {
 };
 
 // --- マクロキー ---
-const macroKeyDefs = Array.from({length:10}, (_,i)=>({label:`m${i}`, usage:0xD0 + i}));
+const MACRO_USAGE_START = 0xD0;
+const MACRO_USAGE_END = MACRO_USAGE_START + HID_CONFIG.MACRO_COUNT - 1;
+const macroKeyDefs = Array.from({ length: HID_CONFIG.MACRO_COUNT }, (_, i) => ({ label: `m${i}`, usage: MACRO_USAGE_START + i }));
 
 const keypadUsageMap = {
   0x53: "NumLock",
@@ -204,15 +207,18 @@ const MACRO_USAGE_LABELS = (() => {
     // その他
     0x65: "App",
     0x9A: "SysReq",
+    // 繰返しコード
+    0xD6: "𝄆",
+    0xD7: "𝄇",
     // ディレイコード
     0xDA: "100ms",
     0xDB: "500ms",
     0xDC: "1sec",
     // 修飾キー
-    0xE0: "L-Ctrl",
-    0xE1: "L-Shift",
-    0xE2: "L-Alt",
-    0xE3: "L-GUI",
+    0xE0: "Ctrl",
+    0xE1: "Shift",
+    0xE2: "Alt",
+    0xE3: "GUI",
     0xE4: "R-Ctrl",
     0xE5: "R-Shift",
     0xE6: "R-Alt",
@@ -241,6 +247,12 @@ const isMacroBasicUsageAllowed = (usage) => {
   if (usage < 0x04 || usage > 0x9F) {
     return false;
   }
+  if (usage === 0x32 || usage === 0x39 || usage === 0x66) {
+    return false;
+  }
+  if (usage >= 0x68 && usage <= 0x73) {
+    return false;
+  }
   if (usage === 0x64 || usage === 0x65) {
     return false;
   }
@@ -252,7 +264,9 @@ const isMacroBasicUsageAllowed = (usage) => {
 
 const JP_MACRO_USAGES = new Set([0x88, 0x8A, 0x8B, 0x90, 0x91]);
 const DELAY_MACRO_USAGES = new Set([0xDA, 0xDB, 0xDC]);
-const isMacroEditableUsage = (usage) => (isMacroBasicUsageAllowed(usage) || (usage >= 0xE0 && usage <= 0xE3) || JP_MACRO_USAGES.has(usage) || DELAY_MACRO_USAGES.has(usage));
+const REPEAT_MACRO_USAGES = new Set([0xD6, 0xD7]);
+const MACRO_MODIFIER_USAGES = new Set([0xE0, 0xE1, 0xE2, 0xE3]);
+const isMacroEditableUsage = (usage) => (isMacroBasicUsageAllowed(usage) || (usage >= 0xE0 && usage <= 0xE3) || JP_MACRO_USAGES.has(usage) || DELAY_MACRO_USAGES.has(usage) || REPEAT_MACRO_USAGES.has(usage));
 
 const macroBasicUsageDefs = Array.from({ length: 0x9F - 0x04 + 1 }, (_, i) => {
   const usage = 0x04 + i;
@@ -265,7 +279,13 @@ const macroModifierUsageDefs = Array.from({ length: 0xE3 - 0xE0 + 1 }, (_, i) =>
 });
 
 const macroJpKeyDefs = [0x88, 0x8A, 0x8B, 0x90, 0x91].map(usage => ({ usage, label: getMacroUsageLabel(usage) }));
-const macroDelayKeyDefs = [0xDA, 0xDB, 0xDC].map((usage) => ({ usage, label: getMacroUsageLabel(usage) }));
+const macroDelayKeyDefs = [
+  { usage: 0xDA, label: getMacroUsageLabel(0xDA) },
+  { usage: 0xDB, label: getMacroUsageLabel(0xDB) },
+  { usage: 0xDC, label: getMacroUsageLabel(0xDC) },
+  { usage: 0xD6, label: getMacroUsageLabel(0xD6), className: "macro-repeat-gap" },
+  { usage: 0xD7, label: getMacroUsageLabel(0xD7) }
+];
 
 /** 2. 状態管理 **/
 let fnToggleOn = false;
@@ -425,8 +445,25 @@ function getMacroRemainingBytes(source = macros) {
   return Math.max(0, HID_CONFIG.MACRO_SIZE - getMacroStorageUsedBytes(source));
 }
 
+function findMacroStringLengthOverflowIndex(source = macros) {
+  for (let i = 0; i < HID_CONFIG.MACRO_COUNT; i++) {
+    const macro = source[i] || [];
+    if (macro.length > HID_CONFIG.MACRO_STRING_MAX_LENGTH) {
+      return i;
+    }
+  }
+  return -1;
+}
+
 function setMacrosIfFits(nextMacros, options = {}) {
   const normalized = normalizeMacroOrder(nextMacros);
+  const overflowIndex = findMacroStringLengthOverflowIndex(normalized);
+  if (overflowIndex >= 0) {
+    if (!options.silent) {
+      updateLog(`Macro m${overflowIndex} exceeds ${HID_CONFIG.MACRO_STRING_MAX_LENGTH} bytes.`);
+    }
+    return false;
+  }
   const usedBytes = getMacroStorageUsedBytes(normalized);
   if (usedBytes > HID_CONFIG.MACRO_SIZE) {
     if (!options.silent) {
@@ -448,12 +485,33 @@ function appendMacroUsageToSelected(usage) {
     updateLog(`Unsupported macro usage: ${toHex2(usage)}`);
     return;
   }
+  const currentLen = (macros[selectedMacroIndex] || []).length;
+  if (currentLen >= HID_CONFIG.MACRO_STRING_MAX_LENGTH) {
+    updateLog(`Macro m${selectedMacroIndex} reached ${HID_CONFIG.MACRO_STRING_MAX_LENGTH} bytes.`);
+    return;
+  }
   const next = cloneMacros();
   next[selectedMacroIndex].push(usage);
   if (setMacrosIfFits(next)) {
     hasUnsavedMacroEdits = true;
     renderMacroEditor();
   }
+}
+
+function getActiveMacroModifierUsages(macroIndex = selectedMacroIndex) {
+  const activeUsages = new Set();
+  const currentMacro = macros[macroIndex] || [];
+  currentMacro.forEach((usage) => {
+    if (!MACRO_MODIFIER_USAGES.has(usage)) {
+      return;
+    }
+    if (activeUsages.has(usage)) {
+      activeUsages.delete(usage);
+    } else {
+      activeUsages.add(usage);
+    }
+  });
+  return activeUsages;
 }
 
 function removeMacroCodeAt(macroIndex, codeIndex) {
@@ -563,12 +621,16 @@ async function writeMacros() {
   if (!device) return;
   try {
     setMacrosIfFits(cloneMacros(), { silent: true });
+    const overflowIndex = findMacroStringLengthOverflowIndex(macros);
+    if (overflowIndex >= 0) {
+      throw new Error(`Macro m${overflowIndex} exceeds ${HID_CONFIG.MACRO_STRING_MAX_LENGTH} bytes.`);
+    }
     updateLog("Writing macros...");
     const macrodata = new Uint8Array(HID_CONFIG.MACRO_SIZE).fill(0);
     let offset = 0;
     
     // マクロデータを結合（バッファオーバーフロー防止）
-    for (let i = 0; i < HID_CONFIG.MACRO_COUNT; i++) {
+    outer: for (let i = 0; i < HID_CONFIG.MACRO_COUNT; i++) {
       if (macros[i].length === 0) break;
       
       // このマクロのすべての要素をコピー
@@ -577,8 +639,7 @@ async function writeMacros() {
           console.warn(`Macro data overflow: macro ${i} at offset ${offset}, buffer is ${HID_CONFIG.MACRO_SIZE} bytes`);
           updateLog(`Warning: Macro data too large, truncated at macro ${i}`);
           offset = HID_CONFIG.MACRO_SIZE;  // バッファを満杯にして終了
-          i = HID_CONFIG.MACRO_COUNT;  // 外側のループも終了
-          break;
+          break outer;
         }
         macrodata[offset++] = u;
       }
@@ -594,8 +655,7 @@ async function writeMacros() {
     const payload = new Uint8Array(HID_CONFIG.RAW_DATA_SIZE - 1);
     const datasize = payload.length - 2; // 2 bytes for offset and length
     for(let start = 0; start < HID_CONFIG.MACRO_SIZE; start += datasize) {
-      let left = HID_CONFIG.MACRO_SIZE - start;
-      const chunkSize = Math.min(datasize, left);
+      const chunkSize = Math.min(datasize, HID_CONFIG.MACRO_SIZE - start);
       payload.fill(0);
       payload.set(macrodata.slice(start, start + chunkSize), 2);
       payload[0] = start;
@@ -611,16 +671,12 @@ async function writeMacros() {
 
 async function readEncoderKeysForLayer(layer) {
   const requestedEncoderCount = 1; // RE0 only
-  const requiredBufferBytes = requestedEncoderCount * 4; // 1 encoder = CW(2) + CCW(2)
   const payload = new Uint8Array([0, layer, requestedEncoderCount]); // RE0, layer, encoder count
   const { body } = await sendCommand(HID_COMMANDS.READ_RE_KEY, payload);
   // device side: data[1]=read encoder count, data[4..] = keycodes (4 bytes per encoder)
   const readEncoderCount = body[0] || 0;
   if (readEncoderCount < requestedEncoderCount) {
     throw new Error(`READ_RE_KEY returned ${readEncoderCount} encoder(s)`);
-  }
-  if (requiredBufferBytes > (HID_CONFIG.RAW_DATA_SIZE - 4)) {
-    throw new Error("READ_RE_KEY buffer size exceeds report capacity");
   }
   const cw = (body[3] || 0) | ((body[4] || 0) << 8);
   const ccw = (body[5] || 0) | ((body[6] || 0) << 8);
@@ -754,16 +810,27 @@ function getBaseLabelFromUsageForFace(usage, fallbackLabel = "") {
 }
 
 function isMacroTriggerUsage(usage) {
-  return usage >= 0xD0 && usage <= 0xD9;
+  return usage >= MACRO_USAGE_START && usage <= MACRO_USAGE_END;
 }
 
-function populateMacroUsageButtons(containerId, defs) {
+function populateMacroUsageButtons(containerId, defs, options = {}) {
   const area = document.getElementById(containerId);
   if (!area) return;
   area.innerHTML = "";
+  const activeUsages = options.activeUsages || new Set();
   defs.forEach((d) => {
     const b = document.createElement("button");
     b.textContent = d.label;
+    b.classList.add("macro-usage-btn");
+    if (d.className) {
+      b.classList.add(d.className);
+    }
+    if (activeUsages.has(d.usage)) {
+      b.classList.add("active");
+      b.setAttribute("aria-pressed", "true");
+    } else {
+      b.setAttribute("aria-pressed", "false");
+    }
     b.onclick = () => appendMacroUsageToSelected(d.usage);
     area.appendChild(b);
   });
@@ -851,6 +918,7 @@ function renderMacroSequence() {
 
 function renderMacroEditor() {
   setMacrosIfFits(cloneMacros(), { silent: true });
+  populateMacroUsageButtons("macroModifierKeys", macroModifierUsageDefs, { activeUsages: getActiveMacroModifierUsages() });
   renderMacroStorageInfo();
   renderMacroSlots();
   renderMacroSequence();
@@ -966,8 +1034,25 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   setConnectedUiState(false);
   
+  // ヘルパー関数：マクロキーが選択可能か判定
+  const isMacroKeySelectable = (macroIndex) => {
+    // マクロキー自体にマクロコードが定義されているかチェック
+    return macros[macroIndex] && macros[macroIndex].length > 0;
+  };
+
   // A. ダイアログのキーボタン生成
   const applySelectedKey = async (usage, label) => {
+    // マクロキーの場合、選択可能か検証
+    const isMacroKey = usage >= MACRO_USAGE_START && usage <= MACRO_USAGE_END;
+    if (isMacroKey) {
+      const macroIndex = usage - MACRO_USAGE_START;
+      if (!isMacroKeySelectable(macroIndex)) {
+        document.getElementById("keyDialog").classList.add("hidden");
+        updateLog(`m${macroIndex} はマクロコードが定義されていないため、選択できません`);
+        return;
+      }
+    }
+
     if (selectedEncoderDirection) {
       encoderKeymaps[viewMode][selectedEncoderDirection] = { usage, label };
       pendingEncoderChanges.add(`${viewMode}:${selectedEncoderDirection}`);
@@ -1002,6 +1087,18 @@ document.addEventListener("DOMContentLoaded", () => {
       if (displayLabel.length === 1) {
         b.classList.add("single-char");
       }
+
+      // マクロキーの場合、定義状態をチェック
+      const isMacroKey = d.usage >= MACRO_USAGE_START && d.usage <= MACRO_USAGE_END;
+      if (isMacroKey) {
+        const macroIndex = d.usage - MACRO_USAGE_START;
+        if (!isMacroKeySelectable(macroIndex)) {
+          b.disabled = true;
+          b.classList.add("disabled");
+          b.title = `m${macroIndex} はマクロコードが定義されていません`;
+        }
+      }
+
       b.onclick = async () => {
         const applyModifiers = !isMacroTriggerUsage(d.usage);
         const usage = applyModifiers ? (d.usage | getSelectedModifierBits()) : d.usage;
@@ -1048,7 +1145,7 @@ document.addEventListener("DOMContentLoaded", () => {
   populate("functionKeysF13ToF24", functionKeyDefs.slice(12));
   populate("macroKeys", macroKeyDefs);
   populateMacroUsageButtons("macroBasicKeys", macroBasicUsageDefs);
-  populateMacroUsageButtons("macroModifierKeys", macroModifierUsageDefs);
+  populateMacroUsageButtons("macroModifierKeys", macroModifierUsageDefs, { activeUsages: getActiveMacroModifierUsages() });
   populateMacroUsageButtons("macroJpKeys", macroJpKeyDefs);
   populateMacroUsageButtons("macroDelayKeys", macroDelayKeyDefs);
   renderMacroEditor();
@@ -1343,7 +1440,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!device) return updateLog("Not connected.");
 
     try {
-      const requestedBytes = 10;
+      const requestedBytes = HID_CONFIG.MACRO_COUNT;
       const payload = new Uint8Array([requestedBytes]);
       const { body } = await sendCommand(HID_COMMANDS.READ_MACRO_PTRS, payload);
 
@@ -1362,7 +1459,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
   document.getElementById("closeDialog").onclick = () => document.getElementById("keyDialog").classList.add("hidden");
   document.getElementById("closeSpecialDialog").onclick = () => document.getElementById("specialKeyDialog").classList.add("hidden");
-  document.getElementById("closeMacroEditorDialog").onclick = () => document.getElementById("macroEditorDialog").classList.add("hidden");
+    document.getElementById("closeMacroEditorDialog").onclick = () => {
+      document.getElementById("macroEditorDialog").classList.add("hidden");
+      // マクロエディタ閉鎖時、マクロキーボタンを再生成してdisabled状態を更新
+      populate("macroKeys", macroKeyDefs);
+    };
 
   globalThis.macros = macros;
   renderNumpad();
