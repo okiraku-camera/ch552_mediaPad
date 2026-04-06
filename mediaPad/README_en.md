@@ -87,6 +87,7 @@ The following software is required to build this firmware.
 - Visual Studio Code + vscode-arduino extension
 - arduino-cli
 - CH55xDuino
+- `ch552_keyPad_Library` under Arduino libraries is required.
 
 ### Device Split by arduino.json
 
