@@ -1,0 +1,12 @@
+{
+    "configuration": "clock=16internal,usb_settings=user148,upload_method=usb,bootloader_pin=p36",
+    "board": "CH55xDuino:mcs51:ch552",
+    "sketch": "mediaPad\\mediaPad.ino",
+    "output": "./built",
+    "port": "COM1",
+    "buildPreferences": [
+        ["compiler.cpp.extra_flags","-DCH552_MEDIAPAD"],
+        ["compiler.c.extra_flags","-DCH552_MEDIAPAD"]
+    ]
+
+}
