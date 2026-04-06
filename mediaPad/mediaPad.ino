@@ -6,6 +6,7 @@
  * http://opensource.org/licenses/mit-license.php
  * 
  */
+
 #include "USB_hid_composite.h"
 #include "hid_keycode.h"
 #include "ch552_watchdog.h"
@@ -26,6 +27,7 @@ void led_off() {
 	sled_off();
 	digitalWrite(KB_LED_PIN, KB_LED_OFF);
 }
+
 
 // Initial layout .
 // This layout is written to NVM on first boot and reset command. User can change the layout by writing to NVM.
@@ -382,7 +384,7 @@ void bg_color(uint8_t dir, bool extra) {
 void encoder_task() {
 	static int16_t last_counter = 0;
 	static unsigned long last_time = 0;
-	if (!should_run_periodic(&last_time, 4))
+	if (!should_run_periodic(&last_time, 2))
 		return;
 	int16_t delta = get_encoder_count() - last_counter;
 	if (delta == 0)
